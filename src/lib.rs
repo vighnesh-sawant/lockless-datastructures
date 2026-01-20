@@ -1,17 +1,14 @@
-use std::{
-    cell::UnsafeCell,
-    sync::{Arc, Mutex},
-};
+use std::sync::{Arc, Mutex};
 
 #[derive(Debug)]
 struct RingBuffer<T, const N: usize> {
-    buffer: UnsafeCell<[T; N]>,
-    head: Mutex<usize>,
-    tail: Mutex<usize>,
+    buffer: [T; N],
+    head: usize,
+    tail: usize,
 }
 
 #[derive(Debug, Clone)]
-pub struct MutexRingBuffer<T, const N: usize>(Arc<RingBuffer<T, N>>);
+pub struct MutexRingBuffer<T, const N: usize>(Arc<Mutex<RingBuffer<T, N>>>);
 
 impl<T: Default + Copy, const N: usize> Default for MutexRingBuffer<T, N> {
     fn default() -> Self {
@@ -27,69 +24,40 @@ impl<T: Default + Copy, const N: usize> MutexRingBuffer<T, N> {
                 "Buffer size N must be a power of two"
             )
         };
-        Self(Arc::new(RingBuffer {
-            buffer: UnsafeCell::new(std::array::from_fn(|_| T::default())),
-            head: Mutex::new(0),
-            tail: Mutex::new(0),
-        }))
+        Self(Arc::new(Mutex::new(RingBuffer {
+            buffer: std::array::from_fn(|_| T::default()),
+            head: 0,
+            tail: 0,
+        })))
     }
 
     pub fn push(&self, value: T) -> Result<(), T> {
-        let mut head = match self.0.head.lock() {
+        let mut ring_buffer = match self.0.lock() {
             Ok(lock) => lock,
             Err(_) => return Err(value),
         };
 
-        if *head < N {
-            let buffer = self.0.buffer.get();
-            unsafe {
-                (*buffer)[Self::mask(&head)] = value;
-            }
-            *head = head.wrapping_add(1);
-        } else {
-            println!("Dropping data as buffer is full");
+        if ring_buffer.head - ring_buffer.tail != N {
+            let mut buffer = ring_buffer.buffer;
+            buffer[Self::mask(&ring_buffer.head)] = value;
+            ring_buffer.head = ring_buffer.head.wrapping_add(1);
         }
 
         Ok(())
     }
 
     pub fn read(&self) -> Option<T> {
-        let mut tail = self.0.tail.lock().unwrap();
+        let mut ring_buffer = self.0.lock().unwrap();
 
-        let head = {
-            let guard = self.0.head.lock().unwrap(); // Read lock acquired
-            *guard // Read (clone for immediate release)
-        };
-        if *tail != head {
-            let buffer = self.0.buffer.get();
-            let value;
-            unsafe {
-                value = (*buffer)[Self::mask(&tail)];
-            }
-            *tail = tail.wrapping_add(1);
+        if ring_buffer.tail != ring_buffer.head {
+            let buffer = ring_buffer.buffer;
+            let value = buffer[Self::mask(&ring_buffer.tail)];
+            ring_buffer.tail = ring_buffer.tail.wrapping_add(1);
             return Some(value);
         }
 
         None
     }
-
-    // pub fn size(&self) -> usize {
-    //     let head = self.0.head.lock().unwrap();
-    //     let tail = self.0.tail.lock().unwrap();
-    //
-    //     *head - *tail
-    // }
-    // pub fn empty(&self) -> bool {
-    //     let head = self.0.head.lock().unwrap();
-    //     let tail = self.0.tail.lock().unwrap();
-    //
-    //     *head == *tail
-    // }
-
-    // pub fn try_read(&self) -> Result<T, ()> {
-    // let mut buffer = self.buffer.lock().map_err(|_| ())?;
-    // buffer.pop_front().ok_or(())
-    // }
 
     fn mask(index: &usize) -> usize {
         *index & (N - 1)
