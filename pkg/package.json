@@ -1,0 +1,15 @@
+{
+  "name": "lockless-datastructures",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "lockless_datastructures_bg.wasm",
+    "lockless_datastructures.js",
+    "lockless_datastructures.d.ts"
+  ],
+  "main": "lockless_datastructures.js",
+  "types": "lockless_datastructures.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}
