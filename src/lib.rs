@@ -3,6 +3,8 @@ use std::ops::{Deref, DerefMut};
 pub mod atomic_ring_buffer_mpmc;
 pub mod atomic_ring_buffer_spsc;
 pub mod mutex_ring_buffer;
+pub mod primitives;
+pub mod render;
 
 #[derive(Debug, Default)]
 #[repr(align(64))]

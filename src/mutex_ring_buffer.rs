@@ -1,5 +1,7 @@
 use parking_lot::Mutex;
-use std::{mem::MaybeUninit, sync::Arc};
+use std::mem::MaybeUninit;
+
+use crate::primitives::Arc;
 
 #[derive(Debug)]
 struct RingBuffer<T, const N: usize> {

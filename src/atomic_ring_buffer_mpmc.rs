@@ -1,8 +1,8 @@
 use std::cell::UnsafeCell;
 use std::mem::MaybeUninit;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+use crate::primitives::Arc;
 use crate::{Backoff, Padded};
 
 #[repr(align(64))]
@@ -124,6 +124,28 @@ impl<T, const N: usize> AtomicRingBufferMpmc<T, N> {
             }
 
             backoff.snooze();
+        }
+    }
+    pub fn read_head(&self) -> usize {
+        self.head.load(Ordering::Acquire) % N
+    }
+
+    pub fn read_tail(&self) -> usize {
+        self.tail.load(Ordering::Acquire) % N
+    }
+
+    pub fn exists(&self, index: usize) -> bool {
+        let mut tail = self.tail.load(Ordering::Acquire);
+        let mut head = self.head.load(Ordering::Acquire);
+        if head == tail {
+            return false;
+        }
+        head &= N - 1;
+        tail &= N - 1;
+        if head > tail {
+            head > index && index > tail
+        } else {
+            !(index >= head && tail > index)
         }
     }
 }

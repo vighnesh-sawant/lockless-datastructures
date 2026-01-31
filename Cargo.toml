@@ -4,11 +4,27 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+js-sys = "0.3.85"
 parking_lot = "0.12.5"
+wasm-bindgen = "0.2.108"
 
 [dev-dependencies]
 criterion = { version = "0.8.1", features = ["html_reports"] }
 
+[lib]
+crate-type = ["cdylib", "rlib"]
+
 [[bench]]
 name = "benchmark"
 harness = false
+
+[dependencies.web-sys]
+version = "0.3.85"
+features = [
+  "Window",
+  "Document",
+  "HtmlCanvasElement",
+  "CanvasRenderingContext2d",
+  "Element",
+  "HtmlInputElement",
+]
