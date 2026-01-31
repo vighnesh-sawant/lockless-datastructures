@@ -39,13 +39,24 @@
         const producerSlider = document.getElementById("producer");
         const consumerSlider = document.getElementById("consumer");
 
-        function step() {
-          const pSpeed = parseInt(producerSlider.value) / 100.0;
-          const cSpeed = parseInt(consumerSlider.value) / 100.0;
 
-          sim.tick(pSpeed, cSpeed);
+        const fps = 10;
+        const interval = 1000 / fps;         
+        let lastTime = 0;
 
+        function step(timestamp) {
           requestAnimationFrame(step);
+
+          const elapsed = timestamp - lastTime;
+
+          if (elapsed > interval) {
+             lastTime = timestamp - (elapsed % interval);
+
+             const pSpeed = parseInt(producerSlider.value) / 50.0;
+             const cSpeed = parseInt(consumerSlider.value) / 50.0;
+
+             sim.tick(pSpeed, cSpeed);
+          }
         }
 
         requestAnimationFrame(step);
