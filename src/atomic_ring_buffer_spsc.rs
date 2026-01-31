@@ -53,9 +53,9 @@ impl<T, const N: usize> AtomicRingBufferSpsc<T, N> {
         }
 
         unsafe {
-            let buffer_ptr = self.buffer.get();
-            let slot = (*buffer_ptr).get_unchecked_mut(head & (N - 1));
-            slot.write(value);
+            let buffer_ptr = self.buffer.get() as *mut MaybeUninit<T>;
+            let slot_ptr = buffer_ptr.add(head & (N - 1));
+            (*slot_ptr).write(value);
         }
 
         self.head.store(head.wrapping_add(1), Ordering::Release);
@@ -85,9 +85,9 @@ impl<T, const N: usize> AtomicRingBufferSpsc<T, N> {
 
         let value;
         unsafe {
-            let buffer_ptr = self.buffer.get();
-            let slot = (*buffer_ptr).get_unchecked(tail & (N - 1));
-            value = slot.assume_init_read();
+            let buffer_ptr = self.buffer.get() as *mut MaybeUninit<T>;
+            let slot_ptr = buffer_ptr.add(tail & (N - 1));
+            value = (*slot_ptr).assume_init_read();
         }
 
         self.tail.store(tail.wrapping_add(1), Ordering::Release);

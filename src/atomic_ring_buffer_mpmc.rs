@@ -143,7 +143,7 @@ impl<T, const N: usize> AtomicRingBufferMpmc<T, N> {
         head &= N - 1;
         tail &= N - 1;
         if head > tail {
-            head > index && index > tail
+            head > index && index >= tail
         } else {
             !(index >= head && tail > index)
         }
@@ -168,12 +168,154 @@ impl<T, const N: usize> Drop for AtomicRingBufferMpmc<T, N> {
 
             if seq == expected_seq {
                 unsafe {
-                    let raw_ptr = slot.data.get();
+                    let raw_ptr = (*slot.data.get()).as_mut_ptr();
                     std::ptr::drop_in_place(raw_ptr);
                 }
             }
 
             tail = tail.wrapping_add(1);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Barrier;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::thread;
+
+    #[test]
+    fn test_basic_push_and_read() {
+        let queue: Arc<AtomicRingBufferMpmc<i32, 4>> = AtomicRingBufferMpmc::new();
+
+        assert!(queue.push(1).is_ok());
+        assert!(queue.push(2).is_ok());
+        assert!(queue.push(3).is_ok());
+
+        assert_eq!(queue.read(), Some(1));
+        assert_eq!(queue.read(), Some(2));
+        assert_eq!(queue.read(), Some(3));
+        assert_eq!(queue.read(), None);
+    }
+
+    #[test]
+    fn test_buffer_full() {
+        let queue: Arc<AtomicRingBufferMpmc<i32, 2>> = AtomicRingBufferMpmc::new();
+
+        assert!(queue.push(10).is_ok());
+        assert!(queue.push(20).is_ok());
+
+        let result = queue.push(30);
+        assert_eq!(result, Err(30));
+
+        assert_eq!(queue.read(), Some(10));
+
+        assert!(queue.push(30).is_ok());
+        assert_eq!(queue.read(), Some(20));
+        assert_eq!(queue.read(), Some(30));
+    }
+
+    #[test]
+    fn test_wrap_around() {
+        let queue: Arc<AtomicRingBufferMpmc<usize, 4>> = AtomicRingBufferMpmc::new();
+
+        for i in 0..100 {
+            assert!(queue.push(i).is_ok());
+            assert_eq!(queue.read(), Some(i));
+        }
+
+        assert_eq!(queue.read(), None);
+    }
+
+    #[test]
+    fn test_mpmc_concurrency() {
+        const BUFFER_SIZE: usize = 64;
+        const NUM_PRODUCERS: usize = 4;
+        const NUM_CONSUMERS: usize = 4;
+        const OPS_PER_THREAD: usize = 10_000;
+
+        let queue: Arc<AtomicRingBufferMpmc<usize, BUFFER_SIZE>> = AtomicRingBufferMpmc::new();
+        let barrier = Arc::new(Barrier::new(NUM_PRODUCERS + NUM_CONSUMERS));
+
+        let mut handles = vec![];
+
+        for p_id in 0..NUM_PRODUCERS {
+            let q = queue.clone();
+            let b = barrier.clone();
+            handles.push(thread::spawn(move || {
+                b.wait();
+                for i in 0..OPS_PER_THREAD {
+                    let value = p_id * OPS_PER_THREAD + i;
+                    while q.push(value).is_err() {
+                        std::thread::yield_now();
+                    }
+                }
+            }));
+        }
+
+        let results = Arc::new(AtomicUsize::new(0));
+        for _ in 0..NUM_CONSUMERS {
+            let q = queue.clone();
+            let b = barrier.clone();
+            let r = results.clone();
+            handles.push(thread::spawn(move || {
+                b.wait();
+
+                loop {
+                    match q.read() {
+                        Some(_) => {
+                            r.fetch_add(1, Ordering::Relaxed);
+                        }
+                        None => {
+                            if r.load(Ordering::Relaxed) == NUM_PRODUCERS * OPS_PER_THREAD {
+                                break;
+                            }
+                            std::thread::yield_now();
+                        }
+                    }
+                }
+            }));
+        }
+
+        for h in handles {
+            h.join().unwrap();
+        }
+
+        assert_eq!(
+            results.load(Ordering::SeqCst),
+            NUM_PRODUCERS * OPS_PER_THREAD,
+            "Total items consumed must match total items produced"
+        );
+    }
+    static DROP_COUNTER: AtomicUsize = AtomicUsize::new(0);
+
+    #[derive(Debug)]
+    struct DropTracker;
+
+    impl Drop for DropTracker {
+        fn drop(&mut self) {
+            DROP_COUNTER.fetch_add(1, Ordering::Relaxed);
+        }
+    }
+
+    #[test]
+    fn test_drop_cleanup() {
+        DROP_COUNTER.store(0, Ordering::Relaxed);
+
+        {
+            let buffer = AtomicRingBufferMpmc::<DropTracker, 8>::new();
+
+            for _ in 0..5 {
+                buffer.push(DropTracker).unwrap();
+            }
+
+            buffer.read();
+            buffer.read();
+
+            assert_eq!(DROP_COUNTER.load(Ordering::Relaxed), 2);
+        }
+
+        assert_eq!(DROP_COUNTER.load(Ordering::Relaxed), 5);
     }
 }
