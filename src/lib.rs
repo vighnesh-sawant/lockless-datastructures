@@ -1,65 +1,58 @@
-use std::sync::{Arc, Mutex};
+use std::ops::{Deref, DerefMut};
 
-#[derive(Debug)]
-struct RingBuffer<T, const N: usize> {
-    buffer: [T; N],
-    head: usize,
-    tail: usize,
+pub mod atomic_ring_buffer_mpmc;
+pub mod atomic_ring_buffer_spsc;
+pub mod mutex_ring_buffer;
+
+#[derive(Debug, Default)]
+#[repr(align(64))]
+pub struct Padded<T>(pub T);
+impl<T> Deref for Padded<T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
-#[derive(Debug, Clone)]
-pub struct MutexRingBuffer<T, const N: usize>(Arc<Mutex<RingBuffer<T, N>>>);
+impl<T> DerefMut for Padded<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
 
-impl<T: Default + Copy, const N: usize> Default for MutexRingBuffer<T, N> {
+use std::hint;
+use std::thread;
+
+pub struct Backoff {
+    step: u32,
+}
+impl Default for Backoff {
     fn default() -> Self {
         Self::new()
     }
 }
-
-impl<T: Default + Copy, const N: usize> MutexRingBuffer<T, N> {
+impl Backoff {
     pub fn new() -> Self {
-        const {
-            assert!(
-                N != 0 && N.is_power_of_two(),
-                "Buffer size N must be a power of two"
-            )
-        };
-        Self(Arc::new(Mutex::new(RingBuffer {
-            buffer: std::array::from_fn(|_| T::default()),
-            head: 0,
-            tail: 0,
-        })))
+        Self { step: 0 }
     }
 
-    pub fn push(&self, value: T) -> Result<(), T> {
-        let mut ring_buffer = match self.0.lock() {
-            Ok(lock) => lock,
-            Err(_) => return Err(value),
-        };
-
-        if ring_buffer.head - ring_buffer.tail != N {
-            let mut buffer = ring_buffer.buffer;
-            buffer[Self::mask(&ring_buffer.head)] = value;
-            ring_buffer.head = ring_buffer.head.wrapping_add(1);
+    #[inline]
+    pub fn snooze(&mut self) {
+        if self.step <= 6 {
+            for _ in 0..(1 << self.step) {
+                hint::spin_loop();
+            }
+        } else {
+            thread::yield_now();
         }
 
-        Ok(())
-    }
-
-    pub fn read(&self) -> Option<T> {
-        let mut ring_buffer = self.0.lock().unwrap();
-
-        if ring_buffer.tail != ring_buffer.head {
-            let buffer = ring_buffer.buffer;
-            let value = buffer[Self::mask(&ring_buffer.tail)];
-            ring_buffer.tail = ring_buffer.tail.wrapping_add(1);
-            return Some(value);
+        if self.step <= 6 {
+            self.step += 1;
         }
-
-        None
     }
 
-    fn mask(index: &usize) -> usize {
-        *index & (N - 1)
+    #[inline]
+    pub fn reset(&mut self) {
+        self.step = 0;
     }
 }
