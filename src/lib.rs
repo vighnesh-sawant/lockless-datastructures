@@ -1,11 +1,16 @@
 use std::ops::{Deref, DerefMut};
 
-pub mod atomic_ring_buffer_mpmc;
-pub mod atomic_ring_buffer_spsc;
-pub mod mutex_ring_buffer;
-pub mod primitives;
-pub mod render;
+mod atomic_ring_buffer_mpmc;
+mod atomic_ring_buffer_spsc;
+mod mutex_ring_buffer;
+mod primitives;
+mod render;
 
+pub use self::atomic_ring_buffer_mpmc::AtomicRingBufferMpmc;
+pub use self::atomic_ring_buffer_spsc::AtomicRingBufferSpsc;
+pub use self::mutex_ring_buffer::MutexRingBuffer;
+
+///Use to prevent cache line collision!
 #[derive(Debug, Default)]
 #[repr(align(64))]
 pub struct Padded<T>(pub T);
@@ -24,7 +29,7 @@ impl<T> DerefMut for Padded<T> {
 
 use std::hint;
 use std::thread;
-
+///An exponential backoff
 pub struct Backoff {
     step: u32,
 }
@@ -37,7 +42,7 @@ impl Backoff {
     pub fn new() -> Self {
         Self { step: 0 }
     }
-
+    ///Call this where you want to backoff!
     #[inline]
     pub fn snooze(&mut self) {
         if self.step <= 6 {

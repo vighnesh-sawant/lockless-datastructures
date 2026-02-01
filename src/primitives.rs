@@ -8,6 +8,7 @@ struct ArcData<T> {
     data: T,
 }
 
+//A primitive implemenation of ARC
 #[derive(Debug)]
 pub struct Arc<T> {
     ptr: NonNull<ArcData<T>>,

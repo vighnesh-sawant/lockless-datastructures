@@ -10,6 +10,7 @@ struct RingBuffer<T, const N: usize> {
     buffer: [MaybeUninit<T>; N],
 }
 
+///A mutex protected RingBuffer
 #[derive(Debug, Clone)]
 pub struct MutexRingBuffer<T, const N: usize>(Arc<Mutex<RingBuffer<T, N>>>);
 
@@ -49,7 +50,7 @@ impl<T, const N: usize> MutexRingBuffer<T, N> {
         Ok(())
     }
 
-    pub fn read(&self) -> Option<T> {
+    pub fn pop(&self) -> Option<T> {
         let mut ring_buffer = self.0.lock();
         if ring_buffer.tail != ring_buffer.head {
             let idx = Self::mask(ring_buffer.tail);
@@ -102,20 +103,20 @@ mod tests {
         assert!(buffer.push(4).is_ok());
 
         assert_eq!(buffer.push(5), Err(5));
-        assert_eq!(buffer.read(), Some(1));
-        assert_eq!(buffer.read(), Some(2));
+        assert_eq!(buffer.pop(), Some(1));
+        assert_eq!(buffer.pop(), Some(2));
 
         assert!(buffer.push(5).is_ok());
         assert!(buffer.push(6).is_ok());
 
         assert_eq!(buffer.push(7), Err(7));
 
-        assert_eq!(buffer.read(), Some(3));
-        assert_eq!(buffer.read(), Some(4));
-        assert_eq!(buffer.read(), Some(5));
-        assert_eq!(buffer.read(), Some(6));
+        assert_eq!(buffer.pop(), Some(3));
+        assert_eq!(buffer.pop(), Some(4));
+        assert_eq!(buffer.pop(), Some(5));
+        assert_eq!(buffer.pop(), Some(6));
 
-        assert_eq!(buffer.read(), None);
+        assert_eq!(buffer.pop(), None);
     }
 
     #[test]
@@ -150,7 +151,7 @@ mod tests {
             handles.push(thread::spawn(move || {
                 let mut count = 0;
                 while count < (total_items / 2) {
-                    if let Some(val) = buf.read() {
+                    if let Some(val) = buf.pop() {
                         sum.fetch_add(val, Ordering::Relaxed);
                         count += 1;
                     } else {
@@ -193,8 +194,8 @@ mod tests {
             }
 
             {
-                let _a = buffer.read();
-                let _b = buffer.read();
+                let _a = buffer.pop();
+                let _b = buffer.pop();
             }
 
             assert_eq!(
@@ -223,7 +224,7 @@ mod tests {
         assert!(buffer.push(Zst).is_ok());
         assert!(buffer.push(Zst).is_err());
 
-        assert!(buffer.read().is_some());
+        assert!(buffer.pop().is_some());
         assert!(buffer.push(Zst).is_ok());
     }
 }

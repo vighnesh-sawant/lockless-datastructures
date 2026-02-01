@@ -6,6 +6,7 @@ use std::{
 
 use crate::{Padded, primitives::Arc};
 
+///Uses atomic's instead of mutexes
 #[derive(Debug)]
 pub struct AtomicRingBufferSpsc<T, const N: usize> {
     cached_head: UnsafeCell<usize>,
@@ -63,7 +64,7 @@ impl<T, const N: usize> AtomicRingBufferSpsc<T, N> {
         Ok(())
     }
 
-    pub fn read(&self) -> Option<T> {
+    pub fn pop(&self) -> Option<T> {
         let tail = self.tail.load(Ordering::Relaxed);
 
         let mut head;
@@ -154,15 +155,15 @@ mod tests {
 
         assert!(buffer.push(5).is_err());
 
-        assert_eq!(buffer.read(), Some(1));
-        assert_eq!(buffer.read(), Some(2));
+        assert_eq!(buffer.pop(), Some(1));
+        assert_eq!(buffer.pop(), Some(2));
 
         assert!(buffer.push(5).is_ok());
 
-        assert_eq!(buffer.read(), Some(3));
-        assert_eq!(buffer.read(), Some(4));
-        assert_eq!(buffer.read(), Some(5));
-        assert_eq!(buffer.read(), None);
+        assert_eq!(buffer.pop(), Some(3));
+        assert_eq!(buffer.pop(), Some(4));
+        assert_eq!(buffer.pop(), Some(5));
+        assert_eq!(buffer.pop(), None);
     }
 
     #[test]
@@ -183,7 +184,7 @@ mod tests {
         let consumer = thread::spawn(move || {
             for i in 0..thread_count {
                 loop {
-                    if let Some(val) = consumer_buffer.read() {
+                    if let Some(val) = consumer_buffer.pop() {
                         assert_eq!(val, i, "Items received out of order!");
                         break;
                     }
@@ -218,8 +219,8 @@ mod tests {
                 buffer.push(DropTracker).unwrap();
             }
 
-            buffer.read();
-            buffer.read();
+            buffer.pop();
+            buffer.pop();
 
             assert_eq!(DROP_COUNTER.load(Ordering::Relaxed), 2);
         }
@@ -239,7 +240,7 @@ mod tests {
         assert!(buffer.push(Zst).is_ok());
         assert!(buffer.push(Zst).is_err());
 
-        assert!(buffer.read().is_some());
+        assert!(buffer.pop().is_some());
         assert!(buffer.push(Zst).is_ok());
     }
 }

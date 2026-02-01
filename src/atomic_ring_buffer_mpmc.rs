@@ -11,6 +11,7 @@ struct Slot<T> {
     data: UnsafeCell<MaybeUninit<T>>,
 }
 
+///Uses atomic's instead of mutexes
 pub struct AtomicRingBufferMpmc<T, const N: usize> {
     head: Padded<AtomicUsize>,
     tail: Padded<AtomicUsize>,
@@ -84,7 +85,7 @@ impl<T, const N: usize> AtomicRingBufferMpmc<T, N> {
         }
     }
 
-    pub fn read(&self) -> Option<T> {
+    pub fn pop(&self) -> Option<T> {
         let mut backoff = Backoff::new();
         let mut tail = self.tail.load(Ordering::Relaxed);
 
@@ -193,10 +194,10 @@ mod tests {
         assert!(queue.push(2).is_ok());
         assert!(queue.push(3).is_ok());
 
-        assert_eq!(queue.read(), Some(1));
-        assert_eq!(queue.read(), Some(2));
-        assert_eq!(queue.read(), Some(3));
-        assert_eq!(queue.read(), None);
+        assert_eq!(queue.pop(), Some(1));
+        assert_eq!(queue.pop(), Some(2));
+        assert_eq!(queue.pop(), Some(3));
+        assert_eq!(queue.pop(), None);
     }
 
     #[test]
@@ -209,11 +210,11 @@ mod tests {
         let result = queue.push(30);
         assert_eq!(result, Err(30));
 
-        assert_eq!(queue.read(), Some(10));
+        assert_eq!(queue.pop(), Some(10));
 
         assert!(queue.push(30).is_ok());
-        assert_eq!(queue.read(), Some(20));
-        assert_eq!(queue.read(), Some(30));
+        assert_eq!(queue.pop(), Some(20));
+        assert_eq!(queue.pop(), Some(30));
     }
 
     #[test]
@@ -222,10 +223,10 @@ mod tests {
 
         for i in 0..100 {
             assert!(queue.push(i).is_ok());
-            assert_eq!(queue.read(), Some(i));
+            assert_eq!(queue.pop(), Some(i));
         }
 
-        assert_eq!(queue.read(), None);
+        assert_eq!(queue.pop(), None);
     }
 
     #[test]
@@ -263,7 +264,7 @@ mod tests {
                 b.wait();
 
                 loop {
-                    match q.read() {
+                    match q.pop() {
                         Some(_) => {
                             r.fetch_add(1, Ordering::Relaxed);
                         }
@@ -310,8 +311,8 @@ mod tests {
                 buffer.push(DropTracker).unwrap();
             }
 
-            buffer.read();
-            buffer.read();
+            buffer.pop();
+            buffer.pop();
 
             assert_eq!(DROP_COUNTER.load(Ordering::Relaxed), 2);
         }

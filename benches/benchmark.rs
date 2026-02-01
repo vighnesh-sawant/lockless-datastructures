@@ -1,8 +1,5 @@
 use criterion::{Criterion, criterion_group, criterion_main};
-use lockless_datastructures::{
-    atomic_ring_buffer_mpmc::AtomicRingBufferMpmc, atomic_ring_buffer_spsc::AtomicRingBufferSpsc,
-    mutex_ring_buffer::MutexRingBuffer,
-};
+use lockless_datastructures::{AtomicRingBufferMpmc, AtomicRingBufferSpsc, MutexRingBuffer};
 use std::{
     hint::black_box,
     sync::{
@@ -53,7 +50,7 @@ fn mutex_ring_buffer_spsc_benchmark() {
     let consumer = std::thread::spawn(move || {
         let mut count = 0;
         while count < OPERATIONS {
-            if let Some(value) = consumer_buffer.read() {
+            if let Some(value) = consumer_buffer.pop() {
                 black_box(value);
                 count += 1;
             }
@@ -79,7 +76,7 @@ fn atomic_ring_buffer_spsc_benchmark() {
     let consumer = std::thread::spawn(move || {
         let mut count = 0;
         while count < OPERATIONS {
-            if let Some(value) = consumer_buffer.read() {
+            if let Some(value) = consumer_buffer.pop() {
                 black_box(value);
                 count += 1;
             }
@@ -119,7 +116,7 @@ fn mutex_ring_buffer_mpmc_benchmark() {
                     break;
                 }
 
-                if let Some(val) = buf.read() {
+                if let Some(val) = buf.pop() {
                     black_box(val);
                     counter.fetch_add(1, Ordering::Relaxed);
                 } else {
@@ -163,7 +160,7 @@ fn atomic_ring_buffer_mpmc_benchmark() {
                     break;
                 }
 
-                if let Some(val) = buf.read() {
+                if let Some(val) = buf.pop() {
                     black_box(val);
                     counter.fetch_add(1, Ordering::Relaxed);
                 } else {

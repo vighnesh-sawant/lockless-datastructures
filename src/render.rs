@@ -7,6 +7,7 @@ use crate::atomic_ring_buffer_spsc::AtomicRingBufferSpsc;
 use crate::primitives::Arc;
 
 const CAPACITY: usize = 32;
+///A wasm simulator for the ring buffer
 #[wasm_bindgen]
 pub struct Simulation {
     buffer: Arc<AtomicRingBufferSpsc<u32, CAPACITY>>,
@@ -62,7 +63,7 @@ impl Simulation {
 
         self.consumer_acc += consumer_speed;
         while self.consumer_acc >= 1.0 {
-            self.buffer.read();
+            self.buffer.pop();
             self.consumer_acc -= 1.0;
         }
 

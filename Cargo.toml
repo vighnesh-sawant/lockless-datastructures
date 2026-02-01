@@ -2,6 +2,11 @@
 name = "lockless-datastructures"
 version = "0.1.0"
 edition = "2024"
+license = "MIT"
+description = "A bunch of lockless datastructures"
+repository = "https://github.com/vighnesh-sawant/lockless-datastructures"
+homepage = "https://github.com/vighnesh-sawant/lockless-datastructures"
+readme = "README.md"
 
 [dependencies]
 js-sys = "0.3.85"
