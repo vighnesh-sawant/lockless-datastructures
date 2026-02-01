@@ -23,9 +23,10 @@ The head and tail are modulo N ( I take N as a power of 2, so that I can do modu
 
 # Use this?
 This is supposed to be a library that I make use of in my upcoming projects!  
-You can clone this and add this as a crate to your project and use the AtomicRingBufferSpsc struct to init a new ring buffer.  
-Make sure the size is a power of 2, or it wont compile.  
-Boom now you have a ring buffer, with push and read,all your high performance networking dreams are 
+Add [this](https://crates.io/crates/lockless-datastructures) to your project using cargo and use AtomicRingBufferSpsc::new() to create a new ring buffer!  
+Use the push and pop functions!  
+[Docs](https://docs.rs/lockless-datastructures/0.1.0/lockless_datastructures/index.html)  
+Boom now you have a ring buffer, with push and pop,all your high performance networking dreams are 
 fulfilled!!  
 The demo just demoing that my ring buffer works!
 
