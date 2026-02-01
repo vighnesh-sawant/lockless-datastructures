@@ -1,13 +1,20 @@
 {
   "name": "lockless-datastructures",
   "type": "module",
+  "description": "A bunch of lockless datastructures",
   "version": "0.1.0",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vighnesh-sawant/lockless-datastructures"
+  },
   "files": [
     "lockless_datastructures_bg.wasm",
     "lockless_datastructures.js",
     "lockless_datastructures.d.ts"
   ],
   "main": "lockless_datastructures.js",
+  "homepage": "https://github.com/vighnesh-sawant/lockless-datastructures",
   "types": "lockless_datastructures.d.ts",
   "sideEffects": [
     "./snippets/*"

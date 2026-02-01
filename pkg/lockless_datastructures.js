@@ -1,5 +1,8 @@
 /* @ts-self-types="./lockless_datastructures.d.ts" */
 
+/**
+ * A wasm simulator for the ring buffer
+ */
 export class Simulation {
     static __wrap(ptr) {
         ptr = ptr >>> 0;

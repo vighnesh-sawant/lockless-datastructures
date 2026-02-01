@@ -1,6 +1,9 @@
 /* tslint:disable */
 /* eslint-disable */
 
+/**
+ * A wasm simulator for the ring buffer
+ */
 export class Simulation {
     private constructor();
     free(): void;
