@@ -32,13 +32,17 @@ jobs:
       - name: Build WASM
         run: wasm-pack build --target web --release
 
+      - name: Run Benchmarks
+        run: cargo bench
+
       - name: Prepare Deployment
         run: |
           mkdir dist
           cp demo/index.html dist/
+          cp demo/benchmarks.html dist/
           rm pkg/.gitignore
           cp -r pkg dist
-
+          cp -r target/criterion dist/
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
         with:
