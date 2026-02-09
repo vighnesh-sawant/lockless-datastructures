@@ -1,3 +1,4 @@
+
 # lockless-datastructures
 I implemented an mpmc and spsc atomic ring buffer to learn about the memory models of modern cpu's
 As per my naive benchmarks the atomic ring buffer's turned out to be faster than the mutex based ring buffer
@@ -22,6 +23,11 @@ All this additions are wrapped to handle even big numbers!
 The head and tail are modulo N ( I take N as a power of 2, so that I can do modulo with bit masking)
 
 # Use this?
+You can test this out by cloning the repo( not from crates.io it does not have the benches code) and running cargo bench!
+This will give you the stats comparing mutex and lockless datastructures!
+Go to target/criterion/report/index.html to look at the COOL graphs
+The bench is just a mock multithreaded application that stress tests my library.
+I also have a website demonstrating ring-buffers which uses my library [here](https://vighnesh-sawant.github.io/lockless-datastructures/)
 This is supposed to be a library that I make use of in my upcoming projects!  
 Add [this](https://crates.io/crates/lockless-datastructures) to your project using cargo and use AtomicRingBufferSpsc::new() to create a new ring buffer!  
 Use the push and pop functions!  
